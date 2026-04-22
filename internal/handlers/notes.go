@@ -23,7 +23,7 @@ func (h *NoteHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	notes := h.store.GetAll()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(notes)
+	json.NewEncoder(w).Encode(notes) //nolint:errcheck
 }
 
 func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -32,18 +32,18 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"}) //nolint:errcheck
 		return
 	}
 
 	createdNote, err := h.store.Create(note)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()}) //nolint:errcheck
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(createdNote)
+		json.NewEncoder(w).Encode(createdNote) //nolint:errcheck
 	}
 }
 func (h *NoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -53,10 +53,10 @@ func (h *NoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if ok {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(note)
+		json.NewEncoder(w).Encode(note) //nolint:errcheck
 	} else {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"}) //nolint:errcheck
 	}
 }
 
@@ -70,7 +70,7 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"}) //nolint:errcheck
 		return
 	}
 
@@ -79,11 +79,11 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"}) //nolint:errcheck
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(note)
+		json.NewEncoder(w).Encode(note) //nolint:errcheck
 	}
 }
 
@@ -96,7 +96,7 @@ func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"}) //nolint:errcheck
 	} else {
 		w.WriteHeader(http.StatusNoContent)
 	}

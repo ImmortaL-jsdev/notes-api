@@ -7,7 +7,7 @@ func RecoveryMiddleware(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(`{"error":"internal server error"}`))
+				w.Write([]byte(`{"error":"internal server error"}`)) //nolint:errcheck
 			}
 		}()
 		next.ServeHTTP(w, r)

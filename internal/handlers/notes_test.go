@@ -15,7 +15,7 @@ import (
 func TestGetAllNotes(t *testing.T) {
 	store := store.NewMemoryStore()
 
-	store.Create(models.Note{Title: "test", Content: "content"})
+	store.Create(models.Note{Title: "test", Content: "content"}) //nolint:errcheck
 
 	handler := NewNoteHandler(store)
 

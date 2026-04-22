@@ -7,7 +7,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		token := r.Header.Get("X-API-Key")
 		if token != "secret123" {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte(`{"error":"invalid token"}`))
+			w.Write([]byte(`{"error":"invalid token"}`)) //nolint:errcheck
 			return
 		}
 		next.ServeHTTP(w, r)
