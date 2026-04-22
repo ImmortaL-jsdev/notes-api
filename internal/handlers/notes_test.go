@@ -165,3 +165,147 @@ func TestGetNoteNotFound(t *testing.T) {
 		t.Errorf("status = %d, want 404", rr.Code)
 	}
 }
+
+func TestUpdateNote(t *testing.T) {
+	store := store.NewMemoryStore()
+
+	originalNote := models.Note{Title: "test", Content: "content"}
+
+	created, err := store.Create(originalNote)
+
+	if err != nil {
+		t.Fatalf("failed to create note : %v", err)
+	}
+
+	handler := NewNoteHandler(store)
+
+	updatedNote := models.Note{Title: "new title", Content: "new content"}
+
+	jsonData, err := json.Marshal(updatedNote)
+
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+
+	r := mux.NewRouter()
+
+	r.HandleFunc("/notes/{id}", handler.Update).Methods("PUT")
+
+	req := httptest.NewRequest("PUT", "/notes/"+created.ID, bytes.NewReader(jsonData))
+
+	req.Header.Set("Content-Type", "application/json")
+
+	req.Header.Set("X-API-Key", "secret123")
+
+	rr := httptest.NewRecorder()
+
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", rr.Code)
+	}
+
+	var got models.Note
+
+	err = json.Unmarshal(rr.Body.Bytes(), &got)
+
+	if err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	if got.ID != created.ID {
+		t.Errorf("id = %s, want %s", got.ID, created.ID)
+	}
+
+	if got.Content != updatedNote.Content {
+		t.Errorf("content = %s, want %s", got.Content, updatedNote.Content)
+	}
+
+	if got.Title != updatedNote.Title {
+		t.Errorf("title = %s, want %s", got.Title, updatedNote.Title)
+	}
+
+	if !got.CreatedAt.Equal(created.CreatedAt) {
+		t.Errorf("createdAt = %v, want %v", got.CreatedAt, created.CreatedAt)
+	}
+
+}
+
+func TestUpdateNoteNotFound(t *testing.T) {
+	store := store.NewMemoryStore()
+	handler := NewNoteHandler(store)
+	r := mux.NewRouter()
+	r.HandleFunc("/notes/{id}", handler.Update).Methods("PUT")
+
+	updatedNote := models.Note{Title: "new title", Content: "new content"}
+	jsonData, _ := json.Marshal(updatedNote)
+
+	req := httptest.NewRequest("PUT", "/notes/123", bytes.NewReader(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-API-Key", "secret123")
+
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rr.Code)
+	}
+}
+
+func TestDeleteNote(t *testing.T) {
+	store := store.NewMemoryStore()
+
+	originalNote := models.Note{Title: "test", Content: "content"}
+
+	created, err := store.Create(originalNote)
+
+	if err != nil {
+		t.Fatalf("failed to create note : %v", err)
+	}
+
+	handler := NewNoteHandler(store)
+
+	r := mux.NewRouter()
+
+	r.HandleFunc("/notes/{id}", handler.Delete).Methods("DELETE")
+
+	req := httptest.NewRequest("DELETE", "/notes/"+created.ID, nil)
+
+	req.Header.Set("X-API-Key", "secret123")
+
+	rr := httptest.NewRecorder()
+
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Errorf("status = %d, want 204", rr.Code)
+	}
+
+	_, ok := store.GetByID(created.ID)
+
+	if ok {
+		t.Errorf("note still exists after delete:")
+	}
+
+}
+
+func TestDeleteNoteNotFound(t *testing.T) {
+
+	store := store.NewMemoryStore()
+	handler := NewNoteHandler(store)
+
+	req := httptest.NewRequest("DELETE", "/notes/123", nil)
+	req.Header.Set("X-API-Key", "secret123")
+
+	rr := httptest.NewRecorder()
+
+	r := mux.NewRouter()
+
+	r.HandleFunc("/notes/{id}", handler.Delete).Methods("DELETE")
+
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rr.Code)
+	}
+}
