@@ -96,3 +96,45 @@ func (s *PostgresStore) Delete(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+func (s *PostgresStore) CreateMany(ctx context.Context, notes []models.Note) ([]models.Note, error) {
+	tx, err := s.pool.Begin(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("begin transaction: %w", err)
+	}
+
+	var txErr error
+
+	defer func() {
+		if txErr != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	created := make([]models.Note, 0, len(notes))
+
+	for _, note := range notes {
+		if note.Title == "" {
+			txErr = fmt.Errorf("title cannot be empty")
+			return nil, txErr
+		}
+
+		var createdNote models.Note
+
+		err := tx.QueryRow(ctx, "INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING id, created_at", note.Title, note.Content).Scan(&createdNote.ID, &createdNote.CreatedAt)
+		if err != nil {
+			txErr = err
+			return nil, txErr
+		}
+		createdNote.Title = note.Title
+		createdNote.Content = note.Content
+		created = append(created, createdNote)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		txErr = err
+		return nil, txErr
+	}
+	return created, nil
+}

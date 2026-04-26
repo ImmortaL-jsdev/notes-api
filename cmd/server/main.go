@@ -6,14 +6,22 @@ import (
 
 	"github.com/ImmortaL-jsdev/notes-api/internal/handlers"
 	"github.com/ImmortaL-jsdev/notes-api/internal/middleware"
-	"github.com/ImmortaL-jsdev/notes-api/internal/store"
+	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
 	"github.com/gorilla/mux"
 )
 
 func main() {
-	s := store.NewMemoryStore()
 
-	h := handlers.NewNoteHandler(s)
+	connString := "postgres://notes_user:notes_pass@localhost:5432/notes_db?sslmode=disable"
+
+	store, err := repository.NewPostgresStore(connString)
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+
+	defer store.Close()
+
+	h := handlers.NewNoteHandler(store)
 
 	r := mux.NewRouter()
 
@@ -22,6 +30,7 @@ func main() {
 	r.HandleFunc("/notes/{id}", h.GetByID).Methods("GET")
 	r.HandleFunc("/notes/{id}", h.Update).Methods("PUT")
 	r.HandleFunc("/notes/{id}", h.Delete).Methods("DELETE")
+	r.HandleFunc("/notes/bulk", h.CreateBulk).Methods("POST")
 
 	r.Use(middleware.RecoveryMiddleware, middleware.LoggingMiddleware, middleware.AuthMiddleware)
 

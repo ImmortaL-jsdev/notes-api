@@ -5,99 +5,113 @@ import (
 	"net/http"
 
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
-	"github.com/ImmortaL-jsdev/notes-api/internal/store"
+	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
 	"github.com/gorilla/mux"
 )
 
 type NoteHandler struct {
-	store *store.MemoryStore
+	store *repository.PostgresStore
 }
 
-func NewNoteHandler(store *store.MemoryStore) *NoteHandler {
-	return &NoteHandler{
-		store: store,
-	}
+func NewNoteHandler(store *repository.PostgresStore) *NoteHandler {
+	return &NoteHandler{store: store}
 }
 
 func (h *NoteHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	notes := h.store.GetAll()
+	notes, err := h.store.GetAll(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(notes) //nolint:errcheck
+	json.NewEncoder(w).Encode(notes)
 }
 
 func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var note models.Note
 	err := json.NewDecoder(r.Body).Decode(&note)
-
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"}) //nolint:errcheck
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"})
 		return
 	}
-
-	createdNote, err := h.store.Create(note)
+	created, err := h.store.Create(r.Context(), note)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()}) //nolint:errcheck
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(createdNote) //nolint:errcheck
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(created)
 }
+
 func (h *NoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	note, ok := h.store.GetByID(id)
-	w.Header().Set("Content-Type", "application/json")
-	if ok {
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(note) //nolint:errcheck
-	} else {
+	note, err := h.store.GetByID(r.Context(), id)
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"}) //nolint:errcheck
+		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"})
+		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(note)
 }
 
 func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
-	var updatedNote models.Note
 	vars := mux.Vars(r)
 	id := vars["id"]
-
+	var updatedNote models.Note
 	err := json.NewDecoder(r.Body).Decode(&updatedNote)
-
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"}) //nolint:errcheck
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON"})
 		return
 	}
-
-	note, ok := h.store.Update(id, updatedNote)
-
-	if !ok {
-		w.Header().Set("Content-Type", "application/json")
+	note, err := h.store.Update(r.Context(), id, updatedNote)
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"}) //nolint:errcheck
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(note) //nolint:errcheck
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(note)
 }
 
 func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-
-	ok := h.store.Delete(id)
-
-	if !ok {
-		w.Header().Set("Content-Type", "application/json")
+	err := h.store.Delete(r.Context(), id)
+	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"}) //nolint:errcheck
-	} else {
-		w.WriteHeader(http.StatusNoContent)
+		json.NewEncoder(w).Encode(map[string]string{"error": "note not found"})
+		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *NoteHandler) CreateBulk(w http.ResponseWriter, r *http.Request) {
+	var notes []models.Note
+	err := json.NewDecoder(r.Body).Decode(&notes)
+	if err != nil {
+		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return
+	}
+	if len(notes) == 0 {
+		http.Error(w, `{"error":"empty list"}`, http.StatusBadRequest)
+		return
+	}
+	created, err := h.store.CreateMany(r.Context(), notes)
+	if err != nil {
+		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(created)
 }
