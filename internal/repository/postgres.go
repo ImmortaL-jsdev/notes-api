@@ -90,9 +90,12 @@ func (s *PostgresStore) Update(ctx context.Context, id string, note models.Note)
 }
 
 func (s *PostgresStore) Delete(ctx context.Context, id string) error {
-	_, err := s.pool.Exec(ctx, "DELETE FROM notes WHERE id = $1", id)
+	cmdTag, err := s.pool.Exec(ctx, "DELETE FROM notes WHERE id = $1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete note: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return fmt.Errorf("note not found")
 	}
 	return nil
 }
