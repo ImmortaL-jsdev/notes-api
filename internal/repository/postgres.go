@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+
 	"fmt"
 
+	myerrors "github.com/ImmortaL-jsdev/notes-api/internal/errors"
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -28,6 +30,10 @@ func (s *PostgresStore) Close() {
 
 func (s *PostgresStore) Create(ctx context.Context, note models.Note) (models.Note, error) {
 	var created models.Note
+
+	if note.Title == "" {
+		return models.Note{}, &myerrors.ValidationError{Message: "title cannot be empty"}
+	}
 
 	query := `INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING id, created_at`
 
@@ -72,13 +78,17 @@ func (s *PostgresStore) GetByID(ctx context.Context, id string) (models.Note, er
 	err := s.pool.QueryRow(ctx, query, id).Scan(&note.ID, &note.Title, &note.Content, &note.CreatedAt)
 
 	if err != nil {
-		return models.Note{}, fmt.Errorf("note not found: %w", err)
+		return models.Note{}, &myerrors.NotFoundError{Entity: "note", ID: id}
 	}
 
 	return note, nil
 }
 
 func (s *PostgresStore) Update(ctx context.Context, id string, note models.Note) (models.Note, error) {
+	if _, err := s.GetByID(ctx, id); err != nil {
+		return models.Note{}, err
+	}
+
 	query := `UPDATE notes SET title = $1, content = $2 WHERE id = $3 RETURNING id, title, content, created_at`
 	var updatedNote models.Note
 	err := s.pool.QueryRow(ctx, query, note.Title, note.Content, id).Scan(&updatedNote.ID, &updatedNote.Title, &updatedNote.Content, &updatedNote.CreatedAt)
@@ -95,7 +105,7 @@ func (s *PostgresStore) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to delete note: %w", err)
 	}
 	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("note not found")
+		return &myerrors.NotFoundError{Entity: "note", ID: id}
 	}
 	return nil
 }
@@ -119,7 +129,7 @@ func (s *PostgresStore) CreateMany(ctx context.Context, notes []models.Note) ([]
 
 	for _, note := range notes {
 		if note.Title == "" {
-			txErr = fmt.Errorf("title cannot be empty")
+			txErr = &myerrors.ValidationError{Message: "title cannot be empty"}
 			return nil, txErr
 		}
 
