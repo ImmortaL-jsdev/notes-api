@@ -31,10 +31,6 @@ func (s *PostgresStore) Close() {
 func (s *PostgresStore) Create(ctx context.Context, note models.Note) (models.Note, error) {
 	var created models.Note
 
-	if note.Title == "" {
-		return models.Note{}, &myerrors.ValidationError{Message: "title cannot be empty"}
-	}
-
 	query := `INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING id, created_at`
 
 	err := s.pool.QueryRow(ctx, query, note.Title, note.Content).Scan(&created.ID, &created.CreatedAt)
@@ -128,10 +124,6 @@ func (s *PostgresStore) CreateMany(ctx context.Context, notes []models.Note) ([]
 	created := make([]models.Note, 0, len(notes))
 
 	for _, note := range notes {
-		if note.Title == "" {
-			txErr = &myerrors.ValidationError{Message: "title cannot be empty"}
-			return nil, txErr
-		}
 
 		var createdNote models.Note
 

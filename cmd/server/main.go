@@ -9,6 +9,7 @@ import (
 	"github.com/ImmortaL-jsdev/notes-api/internal/handlers"
 	"github.com/ImmortaL-jsdev/notes-api/internal/middleware"
 	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
+	"github.com/ImmortaL-jsdev/notes-api/internal/service"
 	"github.com/gorilla/mux"
 )
 
@@ -44,16 +45,18 @@ func main() {
 
 	defer store.Close()
 
-	h := handlers.NewNoteHandler(store)
+	svc := service.NewNoteService(store)
+
+	handler := handlers.NewNoteHandler(svc)
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/notes", h.GetAll).Methods("GET")
-	r.HandleFunc("/notes", h.Create).Methods("POST")
-	r.HandleFunc("/notes/{id}", h.GetByID).Methods("GET")
-	r.HandleFunc("/notes/{id}", h.Update).Methods("PUT")
-	r.HandleFunc("/notes/{id}", h.Delete).Methods("DELETE")
-	r.HandleFunc("/notes/bulk", h.CreateBulk).Methods("POST")
+	r.HandleFunc("/notes", handler.GetAll).Methods("GET")
+	r.HandleFunc("/notes", handler.Create).Methods("POST")
+	r.HandleFunc("/notes/{id}", handler.GetByID).Methods("GET")
+	r.HandleFunc("/notes/{id}", handler.Update).Methods("PUT")
+	r.HandleFunc("/notes/{id}", handler.Delete).Methods("DELETE")
+	r.HandleFunc("/notes/bulk", handler.CreateBulk).Methods("POST")
 
 	r.Use(middleware.RecoveryMiddleware, middleware.LoggingMiddleware, middleware.AuthMiddleware)
 

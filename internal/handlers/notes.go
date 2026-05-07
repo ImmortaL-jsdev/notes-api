@@ -7,7 +7,7 @@ import (
 
 	myerrors "github.com/ImmortaL-jsdev/notes-api/internal/errors"
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
-	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
+	"github.com/ImmortaL-jsdev/notes-api/internal/service"
 	"github.com/gorilla/mux"
 )
 
@@ -22,15 +22,15 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 }
 
 type NoteHandler struct {
-	store *repository.PostgresStore
+	service *service.NoteService
 }
 
-func NewNoteHandler(store *repository.PostgresStore) *NoteHandler {
-	return &NoteHandler{store: store}
+func NewNoteHandler(service *service.NoteService) *NoteHandler {
+	return &NoteHandler{service: service}
 }
 
 func (h *NoteHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	notes, err := h.store.GetAll(r.Context())
+	notes, err := h.service.GetAll(r.Context())
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -44,7 +44,7 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	created, err := h.store.Create(r.Context(), note)
+	created, err := h.service.Create(r.Context(), note)
 	if err != nil {
 		var valErr *myerrors.ValidationError
 		if errors.As(err, &valErr) {
@@ -60,7 +60,7 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *NoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	note, err := h.store.GetByID(r.Context(), id)
+	note, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -81,7 +81,7 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	note, err := h.store.Update(r.Context(), id, updatedNote)
+	note, err := h.service.Update(r.Context(), id, updatedNote)
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -97,7 +97,7 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	err := h.store.Delete(r.Context(), id)
+	err := h.service.Delete(r.Context(), id)
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -120,7 +120,7 @@ func (h *NoteHandler) CreateBulk(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "empty list")
 		return
 	}
-	created, err := h.store.CreateMany(r.Context(), notes)
+	created, err := h.service.CreateMany(r.Context(), notes)
 	if err != nil {
 		var valErr *myerrors.ValidationError
 		if errors.As(err, &valErr) {
