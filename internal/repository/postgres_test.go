@@ -1,135 +1,230 @@
-package repository
+package repository_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
+	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-func TestPostgresStore_Create(t *testing.T) {
+func TestPostgresStore_Create_Integration(t *testing.T) {
 
-	connString := "postgres://notes_user:notes_pass@localhost:5432/notes_db?sslmode=disable"
-
-	store, err := NewPostgresStore(connString)
+	ctx := context.Background()
+	pgContainer, err := postgres.RunContainer(ctx,
+		testcontainers.WithImage("postgres:16-alpine"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"),
+	)
 	if err != nil {
-		t.Fatalf("Не удалось подключиться: %v", err)
+		t.Fatalf("не удалось запустить контейнер: %v", err)
+	}
+
+	defer func() {
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Fatalf("не удалось остановить контейнер: %v", err)
+		}
+	}()
+
+	connString, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("не удалось получить строку подключения: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, connString)
+	if err != nil {
+		t.Fatalf("не удалось создать временный пул: %v", err)
+	}
+	defer pool.Close()
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);`
+	_, err = pool.Exec(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("не удалось создать таблицу notes: %v", err)
+	}
+	pool.Close()
+
+	store, err := repository.NewPostgresStore(connString)
+	if err != nil {
+		t.Fatalf("не удалось создать store: %v", err)
 	}
 	defer store.Close()
 
-	_, err = store.pool.Exec(context.Background(), "TRUNCATE notes")
+	note := models.Note{Title: "Integration Test", Content: "Hello from container"}
+	created, err := store.Create(ctx, note)
 	if err != nil {
-		t.Fatalf("Не удалось очистить таблицу: %v", err)
-	}
-
-	original := models.Note{Title: "Тест", Content: "Содержание"}
-	created, err := store.Create(context.Background(), original)
-	if err != nil {
-		t.Fatalf("Ошибка при создании: %v", err)
+		t.Fatalf("ошибка при создании заметки: %v", err)
 	}
 
 	if created.ID == "" {
 		t.Error("ID не должен быть пустым")
 	}
+	if created.Title != note.Title {
+		t.Errorf("ожидался Title %q, получен %q", note.Title, created.Title)
+	}
+	if created.Content != note.Content {
+		t.Errorf("ожидался Content %q, получен %q", note.Content, created.Content)
+	}
 	if created.CreatedAt.IsZero() {
 		t.Error("CreatedAt не должен быть нулевым")
 	}
-	if created.Title != original.Title || created.Content != original.Content {
-		t.Error("Заголовок или содержимое не совпадают")
-	}
-
-	fetched, err := store.GetByID(context.Background(), created.ID)
-	if err != nil {
-		t.Fatalf("Не удалось прочитать запись: %v", err)
-	}
-	if fetched.Title != original.Title {
-		t.Error("Заголовок прочитанной записи не совпадает")
-	}
 }
 
-func TestPostgresStore_GetAll(t *testing.T) {
-	connString := "postgres://notes_user:notes_pass@localhost:5432/notes_db?sslmode=disable"
+func TestPostgresStore_GetAll_Integration(t *testing.T) {
+	ctx := context.Background()
 
-	store, err := NewPostgresStore(connString)
+	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"))
+
 	if err != nil {
-		t.Fatalf("Не удалось подключиться: %v", err)
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Fatalf("не удалось остановить контейнер: %v", err)
+		}
+	}()
+
+	connString, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+
+	if err != nil {
+		t.Fatalf("не удалось получить строку подключения: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, connString)
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);`
+	_, err = pool.Exec(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("не удалось создать таблицу notes: %v", err)
+	}
+	pool.Close()
+
+	store, err := repository.NewPostgresStore(connString)
+	if err != nil {
+		t.Fatalf("не удалось создать store: %v", err)
 	}
 	defer store.Close()
 
-	_, err = store.pool.Exec(context.Background(), "TRUNCATE notes")
-	if err != nil {
-		t.Fatalf("Не удалось очистить таблицу: %v", err)
-	}
+	/////////////////////////////////////////////////////////
 
 	notesToCreate := []models.Note{{Title: "Первая", Content: "Раз"}, {Title: "Вторая", Content: "Два"}}
 
-	var createdNote []models.Note
+	var createdNotes []models.Note
 
-	ctx := context.Background()
-
-	for _, note := range notesToCreate {
-		created, err := store.Create(ctx, note)
-
+	for _, n := range notesToCreate {
+		created, err := store.Create(ctx, n)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		createdNote = append(createdNote, created)
+		createdNotes = append(createdNotes, created)
 	}
 
-	all, err := store.GetAll(ctx)
+	getAll, err := store.GetAll(ctx)
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(all) != len(createdNote) {
-		t.Errorf("ожидалось %d заметок, получено %d", len(createdNote), len(all))
+	if len(getAll) != len(createdNotes) {
+		t.Errorf("ожидалось %d заметок, получено %d", len(createdNotes), len(getAll))
 	}
 
 	createdMap := make(map[string]bool)
-
-	for _, note := range createdNote {
-		createdMap[note.ID] = true
+	for _, n := range createdNotes {
+		createdMap[n.ID] = true
 	}
-
-	for _, note := range all {
-		if !createdMap[note.ID] {
-			t.Errorf("найден лишний ID: %s", note.ID)
+	for _, n := range getAll {
+		if !createdMap[n.ID] {
+			t.Errorf("найден лишний ID: %s", n.ID)
 		}
 	}
 }
 
-func TestPostgresStore_GetByID(t *testing.T) {
-	connString := "postgres://notes_user:notes_pass@localhost:5432/notes_db?sslmode=disable"
-	store, err := NewPostgresStore(connString)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	_, err = store.pool.Exec(context.Background(), "TRUNCATE notes")
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestPostgresStore_GetByID_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	original := models.Note{Title: "GetByID тест", Content: "Содержимое"}
-	created, err := store.Create(ctx, original)
+	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Fatalf("не удалось остановить контейнер: %v", err)
+		}
+	}()
+
+	connString, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+
+	if err != nil {
+		t.Fatalf("не удалось получить строку подключения: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, connString)
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);`
+	_, err = pool.Exec(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("не удалось создать таблицу notes: %v", err)
+	}
+	pool.Close()
+
+	store, err := repository.NewPostgresStore(connString)
+	if err != nil {
+		t.Fatalf("не удалось создать store: %v", err)
+	}
+	defer store.Close()
+
+	originalNote := models.Note{Title: "GetByID тест", Content: "Содержимое"}
+
+	created, err := store.Create(ctx, originalNote)
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	fetched, err := store.GetByID(ctx, created.ID)
+
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if fetched.ID != created.ID {
 		t.Errorf("ID не совпадает: %s vs %s", fetched.ID, created.ID)
 	}
-	if fetched.Title != original.Title {
-		t.Errorf("Title не совпадает: %s vs %s", fetched.Title, original.Title)
+	if fetched.Title != originalNote.Title {
+		t.Errorf("Title не совпадает: %s vs %s", fetched.Title, originalNote.Title)
 	}
-	if fetched.Content != original.Content {
-		t.Errorf("Content не совпадает: %s vs %s", fetched.Content, original.Content)
+	if fetched.Content != originalNote.Content {
+		t.Errorf("Content не совпадает: %s vs %s", fetched.Content, originalNote.Content)
 	}
 	if !fetched.CreatedAt.Equal(created.CreatedAt) {
 		t.Errorf("CreatedAt не совпадает: %v vs %v", fetched.CreatedAt, created.CreatedAt)
@@ -139,22 +234,56 @@ func TestPostgresStore_GetByID(t *testing.T) {
 	if err == nil {
 		t.Error("Ожидалась ошибка для несуществующего ID, но её нет")
 	}
+
 }
-func TestPostgresStore_Update(t *testing.T) {
-	connString := "postgres://notes_user:notes_pass@localhost:5432/notes_db?sslmode=disable"
-	store, err := NewPostgresStore(connString)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	_, err = store.pool.Exec(context.Background(), "TRUNCATE notes")
-	if err != nil {
-		t.Fatal(err)
-	}
+
+func TestPostgresStore_Update_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	original := models.Note{Title: "Старый", Content: "Старое"}
-	created, err := store.Create(ctx, original)
+	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Fatalf("не удалось остановить контейнер: %v", err)
+		}
+	}()
+
+	connString, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+
+	if err != nil {
+		t.Fatalf("не удалось получить строку подключения: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, connString)
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);`
+	_, err = pool.Exec(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("не удалось создать таблицу notes: %v", err)
+	}
+	pool.Close()
+
+	store, err := repository.NewPostgresStore(connString)
+	if err != nil {
+		t.Fatalf("не удалось создать store: %v", err)
+	}
+	defer store.Close()
+
+	originalNote := models.Note{Title: "Старый", Content: "Старое"}
+
+	created, err := store.Create(ctx, originalNote)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,21 +310,53 @@ func TestPostgresStore_Update(t *testing.T) {
 	_, err = store.Update(ctx, "00000000-0000-0000-0000-000000000000", updatedData)
 	if err == nil {
 		t.Error("ожидалась ошибка при обновлении несуществующей заметки")
+
 	}
 }
 
-func TestPostgresStore_Delete(t *testing.T) {
-	connString := "postgres://notes_user:notes_pass@localhost:5432/notes_db?sslmode=disable"
-	store, err := NewPostgresStore(connString)
+func TestPostgresStore_Delete_Integration(t *testing.T) {
+	ctx := context.Background()
+
+	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"))
+
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Fatalf("не удалось остановить контейнер: %v", err)
+		}
+	}()
+
+	connString, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+
+	if err != nil {
+		t.Fatalf("не удалось получить строку подключения: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, connString)
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);`
+	_, err = pool.Exec(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("не удалось создать таблицу notes: %v", err)
+	}
+	pool.Close()
+
+	store, err := repository.NewPostgresStore(connString)
+	if err != nil {
+		t.Fatalf("не удалось создать store: %v", err)
 	}
 	defer store.Close()
-	_, err = store.pool.Exec(context.Background(), "TRUNCATE notes")
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := context.Background()
 
 	note := models.Note{Title: "Удалить", Content: "Содержимое"}
 	created, err := store.Create(ctx, note)
@@ -219,18 +380,49 @@ func TestPostgresStore_Delete(t *testing.T) {
 	}
 }
 
-func TestPostgresStore_CreateMany(t *testing.T) {
-	connString := "postgres://notes_user:notes_pass@localhost:5432/notes_db?sslmode=disable"
-	store, err := NewPostgresStore(connString)
+func TestPostgresStore_CreateMany_Integration(t *testing.T) {
+	ctx := context.Background()
+
+	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+		postgres.WithDatabase("testdb"),
+		postgres.WithUsername("testuser"),
+		postgres.WithPassword("testpass"))
+
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := pgContainer.Terminate(ctx); err != nil {
+			t.Fatalf("не удалось остановить контейнер: %v", err)
+		}
+	}()
+
+	connString, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
+
+	if err != nil {
+		t.Fatalf("не удалось получить строку подключения: %v", err)
+	}
+
+	pool, err := pgxpool.New(ctx, connString)
+
+	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);`
+	_, err = pool.Exec(ctx, createTableSQL)
+	if err != nil {
+		t.Fatalf("не удалось создать таблицу notes: %v", err)
+	}
+	pool.Close()
+
+	store, err := repository.NewPostgresStore(connString)
+	if err != nil {
+		t.Fatalf("не удалось создать store: %v", err)
 	}
 	defer store.Close()
-	_, err = store.pool.Exec(context.Background(), "TRUNCATE notes")
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx := context.Background()
 
 	validNotes := []models.Note{
 		{Title: "Много 1", Content: "Содержимое 1"},
