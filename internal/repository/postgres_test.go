@@ -19,6 +19,7 @@ func TestPostgresStore_Create_Integration(t *testing.T) {
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),
+		postgres.BasicWaitStrategies(),
 	)
 	if err != nil {
 		t.Fatalf("не удалось запустить контейнер: %v", err)
@@ -86,8 +87,9 @@ func TestPostgresStore_GetAll_Integration(t *testing.T) {
 		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"))
-
+		postgres.WithPassword("testpass"),
+		postgres.BasicWaitStrategies(),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,8 +170,9 @@ func TestPostgresStore_GetByID_Integration(t *testing.T) {
 		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"))
-
+		postgres.WithPassword("testpass"),
+		postgres.BasicWaitStrategies(),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,8 +254,9 @@ func TestPostgresStore_Update_Integration(t *testing.T) {
 		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"))
-
+		postgres.WithPassword("testpass"),
+		postgres.BasicWaitStrategies(),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,8 +337,9 @@ func TestPostgresStore_Delete_Integration(t *testing.T) {
 		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"))
-
+		postgres.WithPassword("testpass"),
+		postgres.BasicWaitStrategies(),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,8 +409,9 @@ func TestPostgresStore_CreateMany_Integration(t *testing.T) {
 		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
-		postgres.WithPassword("testpass"))
-
+		postgres.WithPassword("testpass"),
+		postgres.BasicWaitStrategies(),
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

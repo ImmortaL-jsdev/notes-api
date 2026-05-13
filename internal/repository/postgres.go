@@ -125,6 +125,11 @@ func (s *PostgresStore) CreateMany(ctx context.Context, notes []models.Note) ([]
 
 	for _, note := range notes {
 
+		if note.Title == "" {
+			txErr = fmt.Errorf("title cannot be empty")
+			return nil, txErr
+		}
+
 		var createdNote models.Note
 
 		err := tx.QueryRow(ctx, "INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING id, created_at", note.Title, note.Content).Scan(&createdNote.ID, &createdNote.CreatedAt)
