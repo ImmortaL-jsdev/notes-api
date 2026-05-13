@@ -8,15 +8,14 @@ import (
 	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
 func TestPostgresStore_Create_Integration(t *testing.T) {
 
 	ctx := context.Background()
-	pgContainer, err := postgres.RunContainer(ctx,
-		testcontainers.WithImage("postgres:16-alpine"),
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"),
@@ -83,7 +82,8 @@ func TestPostgresStore_Create_Integration(t *testing.T) {
 func TestPostgresStore_GetAll_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"))
@@ -106,6 +106,10 @@ func TestPostgresStore_GetAll_Integration(t *testing.T) {
 
 	pool, err := pgxpool.New(ctx, connString)
 
+	if err != nil {
+		t.Fatalf("не удалось создать временный пул: %v", err)
+	}
+
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
@@ -123,8 +127,6 @@ func TestPostgresStore_GetAll_Integration(t *testing.T) {
 		t.Fatalf("не удалось создать store: %v", err)
 	}
 	defer store.Close()
-
-	/////////////////////////////////////////////////////////
 
 	notesToCreate := []models.Note{{Title: "Первая", Content: "Раз"}, {Title: "Вторая", Content: "Два"}}
 
@@ -162,7 +164,8 @@ func TestPostgresStore_GetAll_Integration(t *testing.T) {
 func TestPostgresStore_GetByID_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"))
@@ -184,6 +187,10 @@ func TestPostgresStore_GetByID_Integration(t *testing.T) {
 	}
 
 	pool, err := pgxpool.New(ctx, connString)
+
+	if err != nil {
+		t.Fatalf("не удалось создать временный пул: %v", err)
+	}
 
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -240,7 +247,8 @@ func TestPostgresStore_GetByID_Integration(t *testing.T) {
 func TestPostgresStore_Update_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"))
@@ -262,6 +270,10 @@ func TestPostgresStore_Update_Integration(t *testing.T) {
 	}
 
 	pool, err := pgxpool.New(ctx, connString)
+
+	if err != nil {
+		t.Fatalf("не удалось создать временный пул: %v", err)
+	}
 
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -317,7 +329,8 @@ func TestPostgresStore_Update_Integration(t *testing.T) {
 func TestPostgresStore_Delete_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"))
@@ -339,6 +352,10 @@ func TestPostgresStore_Delete_Integration(t *testing.T) {
 	}
 
 	pool, err := pgxpool.New(ctx, connString)
+
+	if err != nil {
+		t.Fatalf("не удалось создать временный пул: %v", err)
+	}
 
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -383,7 +400,8 @@ func TestPostgresStore_Delete_Integration(t *testing.T) {
 func TestPostgresStore_CreateMany_Integration(t *testing.T) {
 	ctx := context.Background()
 
-	pgContainer, err := postgres.RunContainer(ctx, testcontainers.WithImage("postgres:16-alpine"),
+	pgContainer, err := postgres.Run(ctx,
+		"postgres:16-alpine",
 		postgres.WithDatabase("testdb"),
 		postgres.WithUsername("testuser"),
 		postgres.WithPassword("testpass"))
@@ -405,6 +423,10 @@ func TestPostgresStore_CreateMany_Integration(t *testing.T) {
 	}
 
 	pool, err := pgxpool.New(ctx, connString)
+
+	if err != nil {
+		t.Fatalf("не удалось создать временный пул: %v", err)
+	}
 
 	createTableSQL := `CREATE TABLE IF NOT EXISTS notes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
