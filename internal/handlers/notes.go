@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	myerrors "github.com/ImmortaL-jsdev/notes-api/internal/errors"
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
@@ -30,7 +32,10 @@ func NewNoteHandler(service *service.NoteService) *NoteHandler {
 }
 
 func (h *NoteHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	notes, err := h.service.GetAll(r.Context())
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	notes, err := h.service.GetAll(ctx)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -44,7 +49,11 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	created, err := h.service.Create(r.Context(), note)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	created, err := h.service.Create(ctx, note)
 	if err != nil {
 		var valErr *myerrors.ValidationError
 		if errors.As(err, &valErr) {
@@ -60,7 +69,11 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *NoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	note, err := h.service.GetByID(r.Context(), id)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	note, err := h.service.GetByID(ctx, id)
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -77,11 +90,16 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	var updatedNote models.Note
+
 	if err := json.NewDecoder(r.Body).Decode(&updatedNote); err != nil {
 		respondWithError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	note, err := h.service.Update(r.Context(), id, updatedNote)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	note, err := h.service.Update(ctx, id, updatedNote)
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -97,7 +115,11 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	err := h.service.Delete(r.Context(), id)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	err := h.service.Delete(ctx, id)
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -120,7 +142,11 @@ func (h *NoteHandler) CreateBulk(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "empty list")
 		return
 	}
-	created, err := h.service.CreateMany(r.Context(), notes)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	created, err := h.service.CreateMany(ctx, notes)
 	if err != nil {
 		var valErr *myerrors.ValidationError
 		if errors.As(err, &valErr) {
