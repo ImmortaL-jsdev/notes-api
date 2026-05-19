@@ -61,6 +61,7 @@ func main() {
 	r.HandleFunc("/notes/{id}", handler.Update).Methods("PUT")
 	r.HandleFunc("/notes/{id}", handler.Delete).Methods("DELETE")
 	r.HandleFunc("/notes/bulk", handler.CreateBulk).Methods("POST")
+	r.HandleFunc("/notes/process", handler.Process).Methods("GET")
 
 	r.Use(middleware.RecoveryMiddleware, middleware.LoggingMiddleware, middleware.AuthMiddleware)
 

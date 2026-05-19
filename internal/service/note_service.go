@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	myerrors "github.com/ImmortaL-jsdev/notes-api/internal/errors"
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
@@ -67,4 +68,16 @@ func (s *NoteService) CreateMany(ctx context.Context, notes []models.Note) ([]mo
 		return nil, fmt.Errorf("failed to create many notes: %w", err)
 	}
 	return created, nil
+}
+
+func (s *NoteService) Process(ctx context.Context) error {
+	for i := 0; i < 10; i++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			time.Sleep(1 * time.Second)
+		}
+	}
+	return nil
 }
