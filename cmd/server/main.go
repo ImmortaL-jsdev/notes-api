@@ -39,6 +39,12 @@ func main() {
 		dbName = "notes_db"
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+
+	if jwtSecret == "" {
+		jwtSecret = "supersecret"
+	}
+
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPassword, dbHost, dbPort, dbName)
 
@@ -49,21 +55,34 @@ func main() {
 
 	defer store.Close()
 
-	svc := service.NewNoteService(store)
+	userStore, err := repository.NewUserStore(connString)
 
+	if err != nil {
+		log.Fatal("Failed to connect to user store", err)
+	}
+	defer userStore.Close()
+
+	svc := service.NewNoteService(store)
 	handler := handlers.NewNoteHandler(svc)
+
+	authService := service.NewAuthService(userStore, []byte(jwtSecret))
+	authHandler := handlers.NewAuthHandler(authService)
 
 	r := mux.NewRouter()
 
-	r.HandleFunc("/notes", handler.GetAll).Methods("GET")
-	r.HandleFunc("/notes", handler.Create).Methods("POST")
-	r.HandleFunc("/notes/{id}", handler.GetByID).Methods("GET")
-	r.HandleFunc("/notes/{id}", handler.Update).Methods("PUT")
-	r.HandleFunc("/notes/{id}", handler.Delete).Methods("DELETE")
-	r.HandleFunc("/notes/bulk", handler.CreateBulk).Methods("POST")
-	r.HandleFunc("/notes/process", handler.Process).Methods("GET")
+	api := r.PathPrefix("/notes").Subrouter()
+	api.Use(middleware.AuthMiddleware)
 
-	r.Use(middleware.RecoveryMiddleware, middleware.LoggingMiddleware, middleware.AuthMiddleware)
+	r.HandleFunc("/api/register", authHandler.Register).Methods("POST")
+	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
+
+	api.HandleFunc("/notes", handler.GetAll).Methods("GET")
+	api.HandleFunc("/notes", handler.Create).Methods("POST")
+	api.HandleFunc("/notes/{id}", handler.GetByID).Methods("GET")
+	api.HandleFunc("/notes/{id}", handler.Update).Methods("PUT")
+	api.HandleFunc("/notes/{id}", handler.Delete).Methods("DELETE")
+	api.HandleFunc("/notes/bulk", handler.CreateBulk).Methods("POST")
+	api.HandleFunc("/notes/process", handler.Process).Methods("GET")
 
 	port := os.Getenv("PORT")
 	if port == "" {
