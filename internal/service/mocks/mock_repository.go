@@ -56,6 +56,21 @@ func (mr *MockNoteRepositoryMockRecorder) Create(ctx, note any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockNoteRepository)(nil).Create), ctx, note)
 }
 
+// CreateForUser mocks base method.
+func (m *MockNoteRepository) CreateForUser(ctx context.Context, userID string, note models.Note) (models.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateForUser", ctx, userID, note)
+	ret0, _ := ret[0].(models.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateForUser indicates an expected call of CreateForUser.
+func (mr *MockNoteRepositoryMockRecorder) CreateForUser(ctx, userID, note any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateForUser", reflect.TypeOf((*MockNoteRepository)(nil).CreateForUser), ctx, userID, note)
+}
+
 // CreateMany mocks base method.
 func (m *MockNoteRepository) CreateMany(ctx context.Context, notes []models.Note) ([]models.Note, error) {
 	m.ctrl.T.Helper()
@@ -71,6 +86,21 @@ func (mr *MockNoteRepositoryMockRecorder) CreateMany(ctx, notes any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateMany", reflect.TypeOf((*MockNoteRepository)(nil).CreateMany), ctx, notes)
 }
 
+// CreateManyForUser mocks base method.
+func (m *MockNoteRepository) CreateManyForUser(ctx context.Context, userID string, notes []models.Note) ([]models.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateManyForUser", ctx, userID, notes)
+	ret0, _ := ret[0].([]models.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateManyForUser indicates an expected call of CreateManyForUser.
+func (mr *MockNoteRepositoryMockRecorder) CreateManyForUser(ctx, userID, notes any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateManyForUser", reflect.TypeOf((*MockNoteRepository)(nil).CreateManyForUser), ctx, userID, notes)
+}
+
 // Delete mocks base method.
 func (m *MockNoteRepository) Delete(ctx context.Context, id string) error {
 	m.ctrl.T.Helper()
@@ -83,6 +113,20 @@ func (m *MockNoteRepository) Delete(ctx context.Context, id string) error {
 func (mr *MockNoteRepositoryMockRecorder) Delete(ctx, id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockNoteRepository)(nil).Delete), ctx, id)
+}
+
+// DeleteForUser mocks base method.
+func (m *MockNoteRepository) DeleteForUser(ctx context.Context, userID, noteID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteForUser", ctx, userID, noteID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteForUser indicates an expected call of DeleteForUser.
+func (mr *MockNoteRepositoryMockRecorder) DeleteForUser(ctx, userID, noteID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteForUser", reflect.TypeOf((*MockNoteRepository)(nil).DeleteForUser), ctx, userID, noteID)
 }
 
 // GetAll mocks base method.
@@ -100,6 +144,21 @@ func (mr *MockNoteRepositoryMockRecorder) GetAll(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockNoteRepository)(nil).GetAll), ctx)
 }
 
+// GetAllForUser mocks base method.
+func (m *MockNoteRepository) GetAllForUser(ctx context.Context, userID string) ([]models.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllForUser", ctx, userID)
+	ret0, _ := ret[0].([]models.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllForUser indicates an expected call of GetAllForUser.
+func (mr *MockNoteRepositoryMockRecorder) GetAllForUser(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllForUser", reflect.TypeOf((*MockNoteRepository)(nil).GetAllForUser), ctx, userID)
+}
+
 // GetByID mocks base method.
 func (m *MockNoteRepository) GetByID(ctx context.Context, id string) (models.Note, error) {
 	m.ctrl.T.Helper()
@@ -115,6 +174,21 @@ func (mr *MockNoteRepositoryMockRecorder) GetByID(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockNoteRepository)(nil).GetByID), ctx, id)
 }
 
+// GetByIDForUser mocks base method.
+func (m *MockNoteRepository) GetByIDForUser(ctx context.Context, userID, noteID string) (models.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByIDForUser", ctx, userID, noteID)
+	ret0, _ := ret[0].(models.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByIDForUser indicates an expected call of GetByIDForUser.
+func (mr *MockNoteRepositoryMockRecorder) GetByIDForUser(ctx, userID, noteID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByIDForUser", reflect.TypeOf((*MockNoteRepository)(nil).GetByIDForUser), ctx, userID, noteID)
+}
+
 // Update mocks base method.
 func (m *MockNoteRepository) Update(ctx context.Context, id string, note models.Note) (models.Note, error) {
 	m.ctrl.T.Helper()
@@ -128,4 +202,19 @@ func (m *MockNoteRepository) Update(ctx context.Context, id string, note models.
 func (mr *MockNoteRepositoryMockRecorder) Update(ctx, id, note any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockNoteRepository)(nil).Update), ctx, id, note)
+}
+
+// UpdateForUser mocks base method.
+func (m *MockNoteRepository) UpdateForUser(ctx context.Context, userID, noteID string, note models.Note) (models.Note, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateForUser", ctx, userID, noteID, note)
+	ret0, _ := ret[0].(models.Note)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateForUser indicates an expected call of UpdateForUser.
+func (mr *MockNoteRepositoryMockRecorder) UpdateForUser(ctx, userID, noteID, note any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateForUser", reflect.TypeOf((*MockNoteRepository)(nil).UpdateForUser), ctx, userID, noteID, note)
 }

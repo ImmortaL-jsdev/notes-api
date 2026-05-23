@@ -70,19 +70,19 @@ func main() {
 
 	r := mux.NewRouter()
 
-	api := r.PathPrefix("/notes").Subrouter()
-	api.Use(middleware.AuthMiddleware)
-
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
 
-	api.HandleFunc("/notes", handler.GetAll).Methods("GET")
-	api.HandleFunc("/notes", handler.Create).Methods("POST")
-	api.HandleFunc("/notes/{id}", handler.GetByID).Methods("GET")
-	api.HandleFunc("/notes/{id}", handler.Update).Methods("PUT")
-	api.HandleFunc("/notes/{id}", handler.Delete).Methods("DELETE")
-	api.HandleFunc("/notes/bulk", handler.CreateBulk).Methods("POST")
-	api.HandleFunc("/notes/process", handler.Process).Methods("GET")
+	api := r.PathPrefix("/notes").Subrouter()
+	api.Use(middleware.AuthMiddleware)
+
+	api.HandleFunc("", handler.GetAll).Methods("GET")
+	api.HandleFunc("", handler.Create).Methods("POST")
+	api.HandleFunc("/{id}", handler.GetByID).Methods("GET")
+	api.HandleFunc("/{id}", handler.Update).Methods("PUT")
+	api.HandleFunc("/{id}", handler.Delete).Methods("DELETE")
+	api.HandleFunc("/bulk", handler.CreateBulk).Methods("POST")
+	api.HandleFunc("/process", handler.Process).Methods("GET")
 
 	port := os.Getenv("PORT")
 	if port == "" {

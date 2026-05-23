@@ -28,6 +28,7 @@ func GenerateToken(userID string, duration time.Duration, secret []byte) (string
 
 func ValidateToken(tokenString string, secret []byte) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method : %v", t.Header["alg"])
 		}

@@ -32,10 +32,18 @@ func NewNoteHandler(service *service.NoteService) *NoteHandler {
 }
 
 func (h *NoteHandler) GetAll(w http.ResponseWriter, r *http.Request) {
+
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	notes, err := h.service.GetAll(ctx)
+	notes, err := h.service.GetAllForUser(ctx, userID)
+
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "internal server error")
 		return
@@ -50,10 +58,17 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	created, err := h.service.Create(ctx, note)
+	created, err := h.service.CreateForUser(ctx, userID, note)
+
 	if err != nil {
 		var valErr *myerrors.ValidationError
 		if errors.As(err, &valErr) {
@@ -70,10 +85,17 @@ func (h *NoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	note, err := h.service.GetByID(ctx, id)
+	note, err := h.service.GetByIDForUser(ctx, userID, id)
+
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -96,10 +118,16 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	note, err := h.service.Update(ctx, id, updatedNote)
+	note, err := h.service.UpdateForUser(ctx, userID, id, updatedNote)
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -116,10 +144,17 @@ func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	err := h.service.Delete(ctx, id)
+	err := h.service.DeleteForUser(ctx, userID, id)
+
 	if err != nil {
 		var notFound *myerrors.NotFoundError
 		if errors.As(err, &notFound) {
@@ -143,10 +178,17 @@ func (h *NoteHandler) CreateBulk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID, ok := r.Context().Value("userID").(string)
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	created, err := h.service.CreateMany(ctx, notes)
+	created, err := h.service.CreateManyForUser(ctx, userID, notes)
+
 	if err != nil {
 		var valErr *myerrors.ValidationError
 		if errors.As(err, &valErr) {
