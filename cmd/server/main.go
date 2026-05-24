@@ -12,8 +12,10 @@ import (
 
 	"github.com/ImmortaL-jsdev/notes-api/internal/handlers"
 	"github.com/ImmortaL-jsdev/notes-api/internal/middleware"
+	redis_client "github.com/ImmortaL-jsdev/notes-api/internal/redis"
 	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
 	"github.com/ImmortaL-jsdev/notes-api/internal/service"
+	"github.com/ImmortaL-jsdev/notes-api/internal/worker"
 	"github.com/gorilla/mux"
 )
 
@@ -45,6 +47,22 @@ func main() {
 		jwtSecret = "supersecret"
 	}
 
+	redisAddr := os.Getenv("REDIS_ADDR")
+
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+
+	rdb, err := redis_client.NewClient(context.Background(), redisAddr)
+
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+
+	defer rdb.Close()
+
+	go worker.StartExportWorker(context.Background(), rdb)
+
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPassword, dbHost, dbPort, dbName)
 
@@ -63,7 +81,7 @@ func main() {
 	defer userStore.Close()
 
 	svc := service.NewNoteService(store)
-	handler := handlers.NewNoteHandler(svc)
+	handler := handlers.NewNoteHandler(svc, rdb)
 
 	authService := service.NewAuthService(userStore, []byte(jwtSecret))
 	authHandler := handlers.NewAuthHandler(authService)
@@ -83,6 +101,7 @@ func main() {
 	api.HandleFunc("/{id}", handler.Delete).Methods("DELETE")
 	api.HandleFunc("/bulk", handler.CreateBulk).Methods("POST")
 	api.HandleFunc("/process", handler.Process).Methods("GET")
+	api.HandleFunc("/export", handler.Export).Methods("POST")
 
 	port := os.Getenv("PORT")
 	if port == "" {

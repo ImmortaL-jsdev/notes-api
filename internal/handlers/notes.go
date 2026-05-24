@@ -8,9 +8,11 @@ import (
 	"time"
 
 	myerrors "github.com/ImmortaL-jsdev/notes-api/internal/errors"
+	"github.com/ImmortaL-jsdev/notes-api/internal/middleware"
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
 	"github.com/ImmortaL-jsdev/notes-api/internal/service"
 	"github.com/gorilla/mux"
+	"github.com/redis/go-redis/v9"
 )
 
 func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
@@ -24,11 +26,15 @@ func respondWithError(w http.ResponseWriter, statusCode int, message string) {
 }
 
 type NoteHandler struct {
-	service *service.NoteService
+	service     *service.NoteService
+	redisClient *redis.Client
 }
 
-func NewNoteHandler(service *service.NoteService) *NoteHandler {
-	return &NoteHandler{service: service}
+func NewNoteHandler(service *service.NoteService, rdb *redis.Client) *NoteHandler {
+	return &NoteHandler{
+		service:     service,
+		redisClient: rdb,
+	}
 }
 
 func (h *NoteHandler) GetAll(w http.ResponseWriter, r *http.Request) {
@@ -219,4 +225,20 @@ func (h *NoteHandler) Process(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"status": "process completed!"})
 
+}
+
+func (h *NoteHandler) Export(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+
+	if !ok || userID == "" {
+		respondWithError(w, http.StatusUnauthorized, "missing user id")
+		return
+	}
+
+	if err := h.redisClient.LPush(r.Context(), "export-queue", userID).Err(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "failed to enqueue export")
+		return
+	}
+
+	respondWithJSON(w, http.StatusAccepted, map[string]string{"status": "export queued"})
 }
