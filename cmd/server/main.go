@@ -59,7 +59,11 @@ func main() {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 
-	defer rdb.Close()
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			log.Printf("redis close error: %v", err)
+		}
+	}()
 
 	go worker.StartExportWorker(context.Background(), rdb)
 
