@@ -65,8 +65,6 @@ func main() {
 		}
 	}()
 
-	go worker.StartExportWorker(context.Background(), rdb)
-
 	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPassword, dbHost, dbPort, dbName)
 
@@ -76,6 +74,12 @@ func main() {
 	}
 
 	defer store.Close()
+
+	ctxWorker, cancelWorker := context.WithCancel(context.Background())
+
+	defer cancelWorker()
+
+	go worker.StartExportWorker(ctxWorker, rdb, store)
 
 	userStore, err := repository.NewUserStore(connString)
 
