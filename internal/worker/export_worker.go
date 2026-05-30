@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ImmortaL-jsdev/notes-api/internal/models"
 	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
 	"github.com/redis/go-redis/v9"
 )
@@ -34,9 +35,33 @@ func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository
 			userID := result[1]
 			log.Printf("Processing export for user: %s", userID)
 
-			notes, err := store.GetAllForUser(ctx, userID)
-			if err != nil {
-				log.Printf("Failed to get notes for user %s: %v", userID, err)
+			const maxRetries = 3
+			const retryDelay = 2 * time.Second
+
+			var notes []models.Note
+			var lastErr error
+
+			for attempt := 1; attempt <= maxRetries; attempt++ {
+				n, err := store.GetAllForUser(ctx, userID)
+				if err == nil {
+					notes = n
+					lastErr = nil
+					break
+				}
+
+				lastErr = err
+				log.Printf("Attempt %d failed to user %s: %v", attempt, userID, err)
+
+				if attempt < maxRetries {
+					time.Sleep(retryDelay)
+				}
+			}
+
+			if lastErr != nil {
+				if err := rdb.LPush(ctx, "export-dlq", userID).Err(); err != nil {
+					log.Printf("Failed to push to DLQ: %v", err)
+				}
+				log.Printf("Moved user %s to DLQ after %d attempts", userID, maxRetries)
 				continue
 			}
 
@@ -45,7 +70,9 @@ func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository
 			file, err := os.Create(fileName)
 
 			if err != nil {
-				log.Printf("Failed to create file %s: %v", fileName, err)
+				lastErr = fmt.Errorf("create file : %w", err)
+				log.Printf("Attempt failed to create file : %v", lastErr)
+				time.Sleep(retryDelay)
 				continue
 			}
 
@@ -53,7 +80,9 @@ func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository
 				line := fmt.Sprintf("ID: %s\nTitle : %s\nContent: %s\nCreated: %s\n\n", note.ID, note.Title, note.Content, note.CreatedAt.Format(time.RFC3339))
 
 				if _, err := file.WriteString(line); err != nil {
+					lastErr = fmt.Errorf("write note: %w", err)
 					log.Printf("Failed to write note %s: %v", note.ID, err)
+					break
 				}
 			}
 
@@ -61,6 +90,7 @@ func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository
 				log.Printf("Failed to close file: %v", err)
 			}
 			log.Printf("Exported %d notes for user %s to %s", len(notes), userID, fileName)
+
 		}
 	}
 }
