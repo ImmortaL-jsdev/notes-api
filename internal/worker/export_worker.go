@@ -86,6 +86,16 @@ func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository
 				}
 			}
 
+			if lastErr != nil {
+				_ = file.Close()
+				_ = os.Remove(fileName)
+				if err := rdb.LPush(ctx, "export-dlq", userID).Err(); err != nil {
+					log.Printf("Failed to push to DLQ: %v", err)
+				}
+				log.Printf("Export failed for user %s after write error, moved to DLQ", userID)
+				continue
+			}
+
 			if err := file.Close(); err != nil {
 				log.Printf("Failed to close file: %v", err)
 			}
