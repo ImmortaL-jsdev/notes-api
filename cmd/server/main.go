@@ -17,6 +17,7 @@ import (
 	"github.com/ImmortaL-jsdev/notes-api/internal/service"
 	"github.com/ImmortaL-jsdev/notes-api/internal/worker"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -96,8 +97,11 @@ func main() {
 
 	r := mux.NewRouter()
 
+	r.Use(middleware.MetricsMiddleware)
+
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
+	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	api := r.PathPrefix("/notes").Subrouter()
 	api.Use(middleware.AuthMiddleware)
