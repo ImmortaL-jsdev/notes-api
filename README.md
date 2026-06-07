@@ -1,87 +1,163 @@
 ```markdown
 # Notes API
 
-REST API для управления заметками на Go. Поддерживает создание, чтение, обновление и удаление заметок. Данные хранятся в памяти (in-memory store). Реализована аутентификация через API-ключ, логирование запросов и восстановление после паник.
+REST API для управления заметками с аутентификацией, авторизацией и асинхронным экспортом. Построен на Go с использованием чистой архитектуры (handler → service → repository).
+
+## Стек технологий
+
+- **Go 1.25+**
+- **PostgreSQL** — хранение заметок и пользователей
+- **Redis** — очередь задач для асинхронного экспорта
+- **JWT** — аутентификация и авторизация
+- **Docker / docker-compose** — локальное окружение
+- **Prometheus** — сбор метрик
+- **GitHub Actions** — CI/CD (линтер, тесты, зеркалирование в GitLab)
+- **Testcontainers** — интеграционные тесты с реальной БД
 
 ## Требования
 
-- Go 1.24+
+- Go 1.25+
+- Docker и docker-compose
 
-## Установка и запуск
+## Быстрый старт
 
-```bash
-git clone https://github.com/ImmortaL-jsdev/notes-api.git
-cd notes-api
-go mod tidy
-go run cmd/server/main.go
-```
+1. Клонируйте репозиторий:
+   ```bash
+   git clone https://github.com/ImmortaL-jsdev/notes-api.git
+   cd notes-api
+   ```
 
-Сервер запустится на `http://localhost:8080`.
+2. Запустите PostgreSQL и Redis:
+   ```bash
+   docker compose up -d
+   ```
 
-## API эндпоинты
+3. Примените миграции (создание таблиц):
+   ```bash
+   docker compose exec -T postgres psql -U notes_user -d notes_db < migrations/000001_create_notes_table.up.sql
+   docker compose exec -T postgres psql -U notes_user -d notes_db < migrations/000002_create_users.up.sql
+   docker compose exec -T postgres psql -U notes_user -d notes_db < migrations/000003_add_user_id_to_notes.up.sql
+   ```
 
-Все запросы требуют заголовок:
-```
-X-API-Key: secret123
-```
+4. Запустите сервер:
+   ```bash
+   go run cmd/server/main.go
+   ```
+   Сервер будет доступен на `http://localhost:8080`.
 
-### Получить все заметки
-```bash
-curl -H "X-API-Key: secret123" http://localhost:8080/notes
-```
+## Переменные окружения
 
-### Создать заметку
-```bash
-curl -X POST -H "Content-Type: application/json" -H "X-API-Key: secret123" -d '{"title":"Buy milk","content":"2 liters"}' http://localhost:8080/notes
-```
+| Переменная     | Описание                | Значение по умолчанию |
+|----------------|-------------------------|------------------------|
+| `DB_HOST`      | Хост PostgreSQL         | `localhost`            |
+| `DB_PORT`      | Порт PostgreSQL         | `5432`                 |
+| `DB_USER`      | Пользователь PostgreSQL | `notes_user`           |
+| `DB_PASSWORD`  | Пароль PostgreSQL       | `notes_pass`           |
+| `DB_NAME`      | Имя базы данных         | `notes_db`             |
+| `JWT_SECRET`   | Секрет для JWT-токенов  | `supersecret`          |
+| `REDIS_ADDR`   | Адрес Redis             | `localhost:6379`       |
+| `PORT`         | Порт HTTP-сервера       | `8080`                 |
 
-### Получить заметку по ID
-```bash
-curl -H "X-API-Key: secret123" http://localhost:8080/notes/{id}
-```
+## API Endpoints
 
-### Обновить заметку
-```bash
-curl -X PUT -H "Content-Type: application/json" -H "X-API-Key: secret123" -d '{"title":"New title","content":"New content"}' http://localhost:8080/notes/{id}
-```
+### Аутентификация (публичные)
 
-### Удалить заметку
-```bash
-curl -X DELETE -H "X-API-Key: secret123" http://localhost:8080/notes/{id}
-```
+- **Регистрация**  
+  `POST /api/register`  
+  Тело: `{"email":"user@example.com","password":"secret"}`
+
+- **Вход**  
+  `POST /api/login`  
+  Тело: `{"email":"user@example.com","password":"secret"}`  
+  Ответ: `{"access_token":"...", "refresh_token":"..."}`
+
+### Заметки (защищённые, требуют заголовок `Authorization: Bearer <access_token>`)
+
+- **Получить все заметки**  
+  `GET /notes`
+
+- **Создать заметку**  
+  `POST /notes`  
+  Тело: `{"title":"Заголовок","content":"Содержимое"}`
+
+- **Получить заметку по ID**  
+  `GET /notes/{id}`
+
+- **Обновить заметку**  
+  `PUT /notes/{id}`  
+  Тело: `{"title":"Новый заголовок","content":"Новое содержимое"}`
+
+- **Удалить заметку**  
+  `DELETE /notes/{id}`
+
+- **Массовое создание**  
+  `POST /notes/bulk`  
+  Тело: `[{"title":"Первая","content":"..."},{"title":"Вторая","content":"..."}]`
+
+- **Долгая операция (демонстрация таймаутов)**  
+  `GET /notes/process`
+
+- **Экспорт заметок (асинхронный)**  
+  `POST /notes/export`  
+  Задача ставится в очередь Redis, результат сохраняется в папку `exports/`.
+
+### Мониторинг
+
+- **Метрики Prometheus**  
+  `GET /metrics`
 
 ## Тестирование
 
-Запуск всех тестов:
+### Юнит-тесты (сервис с моками)
 ```bash
-go test -v ./...
+make test-unit
+```
+
+### Интеграционные тесты (репозиторий с testcontainers)
+```bash
+make test-integration
+```
+
+### Все тесты
+```bash
+make test
+```
+
+### Линтер
+```bash
+make lint
 ```
 
 ## Структура проекта
 
 ```
 notes-api/
-├── cmd
-├── internal
-│ ├── handlers
-│ ├── middleware
-│ ├── models
-│ └── store
-├── go.mod
-├── go.sum
+├── cmd/server/            # точка входа
+├── internal/
+│   ├── auth/              # JWT-генерация и валидация
+│   ├── errors/            # кастомные ошибки
+│   ├── handlers/          # HTTP-обработчики
+│   ├── middleware/        # JWT, метрики, логирование, восстановление
+│   ├── models/            # структуры Note, User, TokenPair
+│   ├── redis/             # клиент Redis
+│   ├── repository/        # работа с PostgreSQL
+│   ├── service/           # бизнес-логика
+│   └── worker/            # фоновый воркер экспорта
+├── migrations/            # SQL-миграции
+├── .github/workflows/     # CI/CD
+├── docker-compose.yml     # локальное окружение
 ├── Makefile
-└── README.md
+└── go.mod
 ```
 
-## Использование Makefile (опционально)
+## CI/CD
 
-```bash
-make run     # запустить сервер
-make test    # запустить тесты
-make lint    # запустить линтер
-make build   # скомпилировать бинарник
-make clean   # удалить бинарник
-```
+При каждом пуше в `main` запускаются:
+- Линтер (`golangci-lint`)
+- Юнит-тесты
+- Интеграционные тесты (с testcontainers)
+
+Код автоматически зеркалируется в GitLab.
 
 ## Лицензия
 
