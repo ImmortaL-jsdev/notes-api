@@ -102,6 +102,10 @@ func main() {
 	r.HandleFunc("/api/register", authHandler.Register).Methods("POST")
 	r.HandleFunc("/api/login", authHandler.Login).Methods("POST")
 	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}).Methods("GET")
 
 	api := r.PathPrefix("/notes").Subrouter()
 	api.Use(middleware.AuthMiddleware)
