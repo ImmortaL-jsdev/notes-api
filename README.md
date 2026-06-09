@@ -1,5 +1,6 @@
 ```markdown
 # Notes API
+![CI](https://github.com/ImmortaL-jsdev/notes-api/actions/workflows/ci.yml/badge.svg)
 
 REST API для управления заметками с аутентификацией, авторизацией и асинхронным экспортом. Построен на Go с использованием чистой архитектуры (handler → service → repository).
 
