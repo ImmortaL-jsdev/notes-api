@@ -9,7 +9,10 @@ bin/
 .vscode/
 *.swp
 *.swo
+*.log
 
 # Файлы операционной системы
 .DS_Store
 Thumbs.db
+
+
