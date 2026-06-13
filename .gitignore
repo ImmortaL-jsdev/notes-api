@@ -15,4 +15,8 @@ bin/
 .DS_Store
 Thumbs.db
 
+# Артефакты тестирования и профилирования Go
+*.test
+coverage.out
+*.prof
 
