@@ -19,7 +19,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		if len(secret) == 0 {
 			secret = []byte("supersecret")
-
 		}
 
 		authHeader := r.Header.Get("Authorization")
