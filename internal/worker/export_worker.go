@@ -10,8 +10,15 @@ import (
 
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
 	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/redis/go-redis/v9"
 )
+
+var exportsTaskTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "export_tasks_total",
+	Help: "Total number of export tasks processed by the worker.",
+}, []string{"status"})
 
 func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository.PostgresStore) {
 	log.Println("Export worker started")
@@ -92,6 +99,7 @@ func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository
 				if err := rdb.LPush(ctx, "export-dlq", userID).Err(); err != nil {
 					log.Printf("Failed to push to DLQ: %v", err)
 				}
+				exportsTaskTotal.WithLabelValues("failed").Inc()
 				log.Printf("Export failed for user %s after write error, moved to DLQ", userID)
 				continue
 			}
@@ -99,6 +107,8 @@ func StartExportWorker(ctx context.Context, rdb *redis.Client, store *repository
 			if err := file.Close(); err != nil {
 				log.Printf("Failed to close file: %v", err)
 			}
+
+			exportsTaskTotal.WithLabelValues("success").Inc()
 			log.Printf("Exported %d notes for user %s to %s", len(notes), userID, fileName)
 
 		}
