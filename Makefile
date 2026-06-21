@@ -1,4 +1,4 @@
-.PHONY: run test test-unit test-integration lint build clean
+.PHONY: run test test-unit test-integration lint build clean docker-up docker-down
 
 # Запустить сервер
 run:
@@ -26,3 +26,11 @@ build:
 # Удалить собранный бинарник
 clean:
 	rm -rf bin/
+
+# Запустить PostgreSQL и Redis
+docker-up:
+	docker compose up -d
+
+# Остановить PostgreSQL и Redis
+docker-down:
+	docker compose down
