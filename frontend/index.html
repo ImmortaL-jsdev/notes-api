@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes API — Панель управления</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary);
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: var(--danger-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg);
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .token-bar {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.75rem;
+            word-break: break-all;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        #output {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .notes-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .note-item {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .note-item:hover {
+            background: var(--bg);
+        }
+
+        .note-item h3 {
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .note-item p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Аутентификация -->
+        <div class="card">
+            <h2>Аутентификация</h2>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" placeholder="user@example.com" value="test@test.com">
+            </div>
+            <div class="form-group">
+                <label>Пароль</label>
+                <input type="password" id="password" placeholder="••••••" value="123456">
+            </div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="register()">Регистрация</button>
+                <button class="btn-outline" onclick="login()">Войти</button>
+            </div>
+            <div class="token-bar" id="token-bar">Токен: не получен</div>
+        </div>
+
+        <!-- Создание заметки -->
+        <div class="card">
+            <h2>Создать заметку</h2>
+            <div class="form-group">
+                <label>Заголовок</label>
+                <input type="text" id="title" placeholder="Мой заголовок">
+            </div>
+            <div class="form-group">
+                <label>Содержание</label>
+                <textarea id="content" placeholder="Текст заметки..."></textarea>
+            </div>
+            <button class="btn-primary" onclick="createNote()">Создать</button>
+        </div>
+
+        <!-- Все заметки -->
+        <div class="card">
+            <h2>Мои заметки</h2>
+            <button class="btn-outline" onclick="getNotes()">Загрузить все</button>
+            <div class="notes-list" id="notes-list"></div>
+        </div>
+
+        <!-- Действия с заметкой по ID -->
+        <div class="card">
+            <h2>Действия по ID</h2>
+            <div class="form-group">
+                <label>ID заметки</label>
+                <input type="text" id="note-id" placeholder="Вставьте ID из списка...">
+            </div>
+            <div class="btn-group">
+                <button class="btn-outline" onclick="getNoteById()">Получить</button>
+                <button class="btn-outline" onclick="updateNote()">Обновить</button>
+                <button class="btn-danger" onclick="deleteNote()">Удалить</button>
+            </div>
+        </div>
+
+        <!-- Массовое создание -->
+        <div class="card">
+            <h2>Массовое создание</h2>
+            <div class="form-group">
+                <label>JSON-массив заметок</label>
+                <textarea id="bulk-notes">[{"title":"Заметка 1","content":"Текст 1"},{"title":"Заметка 2","content":"Текст 2"}]</textarea>
+            </div>
+            <button class="btn-primary" onclick="createBulk()">Создать</button>
+        </div>
+
+        <!-- Специальные эндпоинты -->
+        <div class="card">
+            <h2>Специальные эндпоинты</h2>
+            <div class="btn-group">
+                <button class="btn-outline" onclick="processNotes()">Process (долгий)</button>
+                <button class="btn-primary" onclick="exportNotes()">Экспорт</button>
+                <button class="btn-outline" onclick="healthCheck()">Health Check</button>
+                <a href="http://localhost:8080/metrics" target="_blank" class="btn-outline" style="text-decoration:none; display:inline-block;">Метрики</a>
+            </div>
+        </div>
+
+        <!-- Вывод -->
+        <div class="card full-width">
+            <h2>Результат</h2>
+            <div id="output">Здесь появится ответ сервера...</div>
+        </div>
+    </div>
+
+    <script>
+        const BASE = 'http://localhost:8080';
+        let token = '';
+
+        function show(data) {
+            document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+        }
+
+        function setToken(t) {
+            token = t;
+            document.getElementById('token-bar').textContent = 'Токен: ' + token;
+        }
+
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resp = await fetch(`${BASE}/api/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            show(await resp.json());
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resp = await fetch(`${BASE}/api/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await resp.json();
+            if (data.access_token) setToken(data.access_token);
+            show(data);
+        }
+
+        async function getNotes() {
+            const resp = await fetch(`${BASE}/notes`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await resp.json();
+            show(data);
+            const list = document.getElementById('notes-list');
+            list.innerHTML = '';
+            if (Array.isArray(data)) {
+                data.forEach(n => {
+                    const div = document.createElement('div');
+                    div.className = 'note-item';
+                    div.innerHTML = `<h3>${n.title}</h3><p>${n.content.substring(0, 100)}</p><small>ID: ${n.id}</small>`;
+                    div.onclick = () => { document.getElementById('note-id').value = n.id; };
+                    list.appendChild(div);
+                });
+            }
+        }
+
+        async function createNote() {
+            const title = document.getElementById('title').value;
+            const content = document.getElementById('content').value;
+            const resp = await fetch(`${BASE}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ title, content })
+            });
+            show(await resp.json());
+        }
+
+        async function getNoteById() {
+            const id = document.getElementById('note-id').value;
+            const resp = await fetch(`${BASE}/notes/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            show(await resp.json());
+        }
+
+        async function updateNote() {
+            const id = document.getElementById('note-id').value;
+            const title = document.getElementById('title').value || 'Обновлённый заголовок';
+            const content = document.getElementById('content').value || 'Обновлённое содержание';
+            const resp = await fetch(`${BASE}/notes/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ title, content })
+            });
+            show(await resp.json());
+        }
+
+        async function deleteNote() {
+            const id = document.getElementById('note-id').value;
+            const resp = await fetch(`${BASE}/notes/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (resp.status === 204) {
+                show({ status: 'deleted' });
+            } else {
+                show(await resp.json());
+            }
+        }
+
+        async function createBulk() {
+            const notes = JSON.parse(document.getElementById('bulk-notes').value);
+            const resp = await fetch(`${BASE}/notes/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(notes)
+            });
+            show(await resp.json());
+        }
+
+        async function processNotes() {
+            const resp = await fetch(`${BASE}/notes/process`, { headers: { 'Authorization': `Bearer ${token}` } });
+            show(await resp.json());
+        }
+
+        async function exportNotes() {
+            const resp = await fetch(`${BASE}/notes/export`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            show(await resp.json());
+        }
+
+        async function healthCheck() {
+            const resp = await fetch(`${BASE}/health`);
+            show({ status: resp.status, text: await resp.text() });
+        }
+    </script>
+</body>
+</html>

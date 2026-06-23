@@ -39,7 +39,7 @@ func NewNoteHandler(service *service.NoteService, rdb *redis.Client) *NoteHandle
 
 func (h *NoteHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
 		return
@@ -64,7 +64,7 @@ func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
 		return
@@ -91,7 +91,7 @@ func (h *NoteHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
 		return
@@ -124,7 +124,7 @@ func (h *NoteHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
 		return
@@ -150,7 +150,7 @@ func (h *NoteHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
 		return
@@ -184,7 +184,7 @@ func (h *NoteHandler) CreateBulk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("userID").(string)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 	if !ok || userID == "" {
 		respondWithError(w, http.StatusUnauthorized, "missing user id")
 		return
