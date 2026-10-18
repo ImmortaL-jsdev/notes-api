@@ -8,16 +8,19 @@ import (
 	"github.com/ImmortaL-jsdev/notes-api/internal/auth"
 	myerrors "github.com/ImmortaL-jsdev/notes-api/internal/errors"
 	"github.com/ImmortaL-jsdev/notes-api/internal/models"
-	"github.com/ImmortaL-jsdev/notes-api/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type UserRepository interface {
+	CreateUser(ctx context.Context, email, passwordHash string) (models.User, error)
+	GetUserByEmail(ctx context.Context, email string) (models.User, error)
+}
 type AuthService struct {
-	userRepo  *repository.UserStore
+	userRepo  UserRepository
 	jwtSecret []byte
 }
 
-func NewAuthService(userRepo *repository.UserStore, secret []byte) *AuthService {
+func NewAuthService(userRepo UserRepository, secret []byte) *AuthService {
 	return &AuthService{
 		userRepo:  userRepo,
 		jwtSecret: secret,
