@@ -267,10 +267,9 @@
         <div class="card">
             <h2>Специальные эндпоинты</h2>
             <div class="btn-group">
-               
                 <button class="btn-primary" onclick="exportNotes()">Экспорт</button>
                 <button class="btn-outline" onclick="healthCheck()">Health Check</button>
-                <a href="http://localhost:8080/metrics" target="_blank" class="btn-outline" style="text-decoration:none; display:inline-block;">Метрики</a>
+                <a href="https://notes-api-immortal-backdev.mia0.amvera.tech/metrics" target="_blank" class="btn-outline" style="text-decoration:none; display:inline-block;">Метрики</a>
             </div>
         </div>
 
@@ -282,7 +281,7 @@
     </div>
 
     <script>
-        const BASE = 'http://localhost:8080';
+        const BASE = 'https://notes-api-immortal-backdev.mia0.amvera.tech';
         let token = '';
 
         function show(data) {
@@ -386,8 +385,6 @@
             });
             show(await resp.json());
         }
-
-        
 
         async function exportNotes() {
             const resp = await fetch(`${BASE}/notes/export`, {
