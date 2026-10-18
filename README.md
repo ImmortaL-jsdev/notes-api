@@ -1,24 +1,30 @@
 ```markdown
 # Notes API
-![CI](https://github.com/ImmortaL-jsdev/notes-api/actions/workflows/ci.yml/badge.svg)
 
-REST API для управления заметками с аутентификацией, авторизацией и асинхронным экспортом. Построен на Go с использованием чистой архитектуры (handler → service → repository).
+[![CI](https://github.com/ImmortaL-jsdev/notes-api/actions/workflows/ci.yml/badge.svg)](https://github.com/ImmortaL-jsdev/notes-api/actions/workflows/ci.yml)
+
+REST API для управления заметками на Go. Проект демонстрирует чистую архитектуру (handler → service → repository), JWT-аутентификацию, асинхронную обработку задач через Redis и полноценный мониторинг.
+
+## Особенности
+
+- **Аутентификация и авторизация:** JWT (Access и Refresh токены), хеширование паролей через bcrypt.
+- **Изоляция данных:** Пользователи имеют доступ только к своим заметкам (защита через middleware и внешние ключи в БД).
+- **Асинхронный экспорт:** Тяжелые операции вынесены в фоновый воркер. Используется очередь Redis, реализованы механизмы Retry (повторные попытки) и DLQ (Dead Letter Queue).
+- **Мониторинг:** Сбор метрик Prometheus и предварительно настроенный дашборд Grafana.
+- **Тестирование:** Покрытие юнит-тестами (gomock) и интеграционными тестами (testcontainers).
+- **CI/CD:** GitHub Actions (линтер, тесты, зеркалирование репозитория в GitLab).
+- **Frontend:** Простой HTML/JS клиент для ручного тестирования API.
 
 ## Стек технологий
 
 - **Go 1.25+**
-- **PostgreSQL** — хранение заметок и пользователей
-- **Redis** — очередь задач для асинхронного экспорта
-- **JWT** — аутентификация и авторизация
-- **Docker / docker-compose** — локальное окружение
-- **Prometheus** — сбор метрик
-- **GitHub Actions** — CI/CD (линтер, тесты, зеркалирование в GitLab)
-- **Testcontainers** — интеграционные тесты с реальной БД
-
-## Требования
-
-- Go 1.25+
-- Docker и docker-compose
+- **PostgreSQL** — основная база данных (драйвер `pgx/v5`).
+- **Redis** — брокер сообщений для очереди экспорта.
+- **JWT** (`golang-jwt/jwt/v5`) + **bcrypt** — безопасность.
+- **Gorilla Mux** — HTTP-роутинг.
+- **Docker / docker-compose** — локальное окружение.
+- **Prometheus + Grafana** — мониторинг и визуализация.
+- **Testcontainers** — интеграционные тесты с реальной БД.
 
 ## Быстрый старт
 
@@ -28,19 +34,19 @@ REST API для управления заметками с аутентифик�
    cd notes-api
    ```
 
-2. Запустите PostgreSQL и Redis:
+2. Запустите инфраструктуру (Postgres, Redis, Prometheus, Grafana):
    ```bash
    docker compose up -d
    ```
 
-3. Примените миграции (создание таблиц):
+3. Примените миграции к базе данных:
    ```bash
    docker compose exec -T postgres psql -U notes_user -d notes_db < migrations/000001_create_notes_table.up.sql
    docker compose exec -T postgres psql -U notes_user -d notes_db < migrations/000002_create_users.up.sql
    docker compose exec -T postgres psql -U notes_user -d notes_db < migrations/000003_add_user_id_to_notes.up.sql
    ```
 
-4. Запустите сервер:
+4. Запустите сервер (и фоновый воркер):
    ```bash
    go run cmd/server/main.go
    ```
@@ -48,138 +54,66 @@ REST API для управления заметками с аутентифик�
 
 ## Переменные окружения
 
-| Переменная     | Описание                | Значение по умолчанию |
-|----------------|-------------------------|------------------------|
-| `DB_HOST`      | Хост PostgreSQL         | `localhost`            |
-| `DB_PORT`      | Порт PostgreSQL         | `5432`                 |
-| `DB_USER`      | Пользователь PostgreSQL | `notes_user`           |
-| `DB_PASSWORD`  | Пароль PostgreSQL       | `notes_pass`           |
-| `DB_NAME`      | Имя базы данных         | `notes_db`             |
-| `JWT_SECRET`   | Секрет для JWT-токенов  | `supersecret`          |
-| `REDIS_ADDR`   | Адрес Redis             | `localhost:6379`       |
-| `PORT`         | Порт HTTP-сервера       | `8080`                 |
+Для локального запуска все переменные имеют дефолтные значения. Для продакшена их необходимо переопределить.
+
+| Переменная | Описание | Значение по умолчанию |
+|------------|----------|-----------------------|
+| `DB_HOST` | Хост PostgreSQL | `localhost` |
+| `DB_PORT` | Порт PostgreSQL | `5432` |
+| `DB_USER` | Пользователь PostgreSQL | `notes_user` |
+| `DB_PASSWORD` | Пароль PostgreSQL | `notes_pass` |
+| `DB_NAME` | Имя базы данных | `notes_db` |
+| `JWT_SECRET` | Секретный ключ для JWT | `supersecret` |
+| `REDIS_ADDR` | Адрес Redis | `localhost:6379` |
+| `PORT` | Порт HTTP-сервера | `8080` |
 
 ## API Endpoints
 
-### Аутентификация (публичные)
+### Публичные маршруты
+- `POST /api/register` — Регистрация `{"email": "...", "password": "..."}`
+- `POST /api/login` — Авторизация, возвращает `{"access_token": "...", "refresh_token": "..."}`
+- `GET /health` — Проверка статуса сервера
+- `GET /metrics` — Метрики Prometheus
 
-- **Регистрация**  
-  `POST /api/register`  
-  Тело: `{"email":"user@example.com","password":"secret"}`
+### Защищенные маршруты (требуют заголовок `Authorization: Bearer <access_token>`)
+- `GET /notes` — Получить все свои заметки
+- `POST /notes` — Создать заметку `{"title": "...", "content": "..."}`
+- `GET /notes/{id}` — Получить заметку по ID
+- `PUT /notes/{id}` — Обновить заметку
+- `DELETE /notes/{id}` — Удалить заметку
+- `POST /notes/bulk` — Массовое создание заметок `[{"title": "...", "content": "..."}]`
+- `POST /notes/export` — Запустить асинхронный экспорт заметок (результат в папке `exports/`)
 
-- **Вход**  
-  `POST /api/login`  
-  Тело: `{"email":"user@example.com","password":"secret"}`  
-  Ответ: `{"access_token":"...", "refresh_token":"..."}`
+## Мониторинг
 
-### Заметки (защищённые, требуют заголовок `Authorization: Bearer <access_token>`)
+В проекте настроен автоматический провижининг (Infrastructure as Code) для Prometheus и Grafana. 
 
-- **Получить все заметки**  
-  `GET /notes`
+После запуска `docker compose up -d`, откройте Grafana по адресу `http://localhost:3000` (логин/пароль: `admin`/`admin`). В разделе **Dashboards** вас встретит готовый дашборд с графиками RPS, задержек (p95 latency) и метриками работы фонового воркера.
 
-- **Создать заметку**  
-  `POST /notes`  
-  Тело: `{"title":"Заголовок","content":"Содержимое"}`
-
-- **Получить заметку по ID**  
-  `GET /notes/{id}`
-
-- **Обновить заметку**  
-  `PUT /notes/{id}`  
-  Тело: `{"title":"Новый заголовок","content":"Новое содержимое"}`
-
-- **Удалить заметку**  
-  `DELETE /notes/{id}`
-
-- **Массовое создание**  
-  `POST /notes/bulk`  
-  Тело: `[{"title":"Первая","content":"..."},{"title":"Вторая","content":"..."}]`
-
-- **Долгая операция (демонстрация таймаутов)**  
-  `GET /notes/process`
-
-- **Экспорт заметок (асинхронный)**  
-  `POST /notes/export`  
-  Задача ставится в очередь Redis, результат сохраняется в папку `exports/`.
-
-### Мониторинг
-
-- **Проверка работоспособности**  
-  `GET /health`  
-  Возвращает `OK` и статус 200, если сервер запущен.
-
-- **Метрики Prometheus**  
-  `GET /metrics`  
-
-- **Grafana** (визуализация метрик)  
-  После запуска `docker compose up -d` открой `http://localhost:3000`.  
-  Логин: `admin`, пароль: `admin`.  
-  Добавь источник данных Prometheus с URL `http://host.docker.internal:8080/metrics` (или `http://localhost:8080/metrics`, если Grafana вне Docker).
+![Grafana Dashboard](docs/grafana-dashboard.png)
 
 ## Тестирование
 
-### Юнит-тесты (сервис с моками)
 ```bash
+# Юнит-тесты сервиса (с моками)
 make test-unit
-```
 
-### Интеграционные тесты (репозиторий с testcontainers)
-```bash
+# Интеграционные тесты репозитория (testcontainers)
 make test-integration
-```
 
-### Все тесты
-```bash
-make test
-```
-
-### Линтер
-```bash
+# Линтер
 make lint
 ```
 
-## Структура проекта
-
-```
-notes-api/
-├── cmd/server/            # точка входа
-├── internal/
-│   ├── auth/              # JWT-генерация и валидация
-│   ├── errors/            # кастомные ошибки
-│   ├── handlers/          # HTTP-обработчики
-│   ├── middleware/        # JWT, метрики, логирование, восстановление
-│   ├── models/            # структуры Note, User, TokenPair
-│   ├── redis/             # клиент Redis
-│   ├── repository/        # работа с PostgreSQL
-│   ├── service/           # бизнес-логика
-│   └── worker/            # фоновый воркер экспорта
-├── migrations/            # SQL-миграции
-├── .github/workflows/     # CI/CD
-├── docker-compose.yml     # локальное окружение
-├── Makefile
-└── go.mod
-```
-
-## CI/CD
-
-При каждом пуше в `main` запускаются:
-- Линтер (`golangci-lint`)
-- Юнит-тесты
-- Интеграционные тесты (с testcontainers)
-
-Код автоматически зеркалируется в GitLab.
-
-
 ## Архитектура запуска приложения
-   
-При запуске сервера происходят следующие этапы:
-1. **Инициализация**: Считывание ENV-переменных, подключение к Redis и PostgreSQL (основная БД и БД пользователей).
-2. **Фоновые процессы**: Запуск горутины `StartExportWorker` для обработки тяжелых задач экспорта.
-3. **Роутинг**: Настройка роутера Gorilla Mux.
-- Глобальное middleware сбора метрик Prometheus (`MetricsMiddleware`).
-- Разделение на публичные маршруты и приватный субмаршрутизатор `/notes` под защитой `AuthMiddleware`.
-4. **Graceful Shutdown**: Перехват системных сигналов `SIGINT`/`SIGTERM` для плавного завершения работы за 30 секунд.
 
+При запуске сервера происходят следующие этапы:
+1. **Инициализация:** Считывание ENV-переменных, подключение к Redis и PostgreSQL.
+2. **Фоновые процессы:** Запуск горутины `StartExportWorker` для обработки тяжелых задач экспорта.
+3. **Роутинг:** Настройка роутера Gorilla Mux.
+   - Глобальное middleware сбора метрик Prometheus (`MetricsMiddleware`).
+   - Разделение на публичные маршруты и приватный субмаршрутизатор `/notes` под защитой `AuthMiddleware`.
+4. **Graceful Shutdown:** Перехват системных сигналов `SIGINT`/`SIGTERM` для плавного завершения работы за 30 секунд.
 
 ## Клиентское приложение
 
@@ -187,6 +121,28 @@ notes-api/
 Откройте `index.html` в браузере, чтобы взаимодействовать с сервером без использования `curl`.  
 Поддерживаются все эндпоинты, включая регистрацию, вход, CRUD заметок и экспорт.
 
+## Структура проекта
+
+```
+notes-api/
+├── cmd/server/            # Точка входа (main.go), сборка зависимостей, graceful shutdown
+├── internal/
+│   ├── auth/              # Генерация и валидация JWT
+│   ├── errors/            # Кастомные ошибки (ValidationError, NotFoundError)
+│   ├── handlers/          # HTTP-обработчики
+│   ├── middleware/        # JWT-авторизация, метрики, логирование, CORS
+│   ├── models/            # Структуры данных (Note, User, TokenPair)
+│   ├── redis/             # Клиент Redis
+│   ├── repository/        # Работа с PostgreSQL (pgx)
+│   ├── service/           # Бизнес-логика и валидация
+│   └── worker/            # Фоновый воркер экспорта (Redis BRPOP, Retry, DLQ)
+├── migrations/            # SQL-миграции
+├── prometheus/            # Конфигурация сбора метрик
+├── grafana/               # Provisioning дашбордов и datasources
+├── frontend/              # HTML/JS клиент для тестирования
+├── docker-compose.yml     # Инфраструктура для локальной разработки
+└── .github/workflows/     # CI/CD пайплайны
+```
 
 ## Лицензия
 
