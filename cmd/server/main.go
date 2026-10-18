@@ -124,7 +124,6 @@ func main() {
 	api.HandleFunc("/{id}", handler.Update).Methods("PUT")
 	api.HandleFunc("/{id}", handler.Delete).Methods("DELETE")
 	api.HandleFunc("/bulk", handler.CreateBulk).Methods("POST")
-	api.HandleFunc("/process", handler.Process).Methods("GET")
 	api.HandleFunc("/export", handler.Export).Methods("POST")
 
 	port := os.Getenv("PORT")

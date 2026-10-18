@@ -207,26 +207,6 @@ func (h *NoteHandler) CreateBulk(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, created)
 }
 
-func (h *NoteHandler) Process(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	err := h.service.Process(ctx)
-
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-		respondWithError(w, http.StatusRequestTimeout, "request timeout")
-		return
-	}
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, map[string]string{"status": "process completed!"})
-
-}
-
 func (h *NoteHandler) Export(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(string)
 
